@@ -1,2 +1,2 @@
-# c-data-structures
-Data structures implemeted in C.
+# C data structures
+Data structures implemented in C.
