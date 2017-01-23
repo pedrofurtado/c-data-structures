@@ -28,5 +28,5 @@ bool enqueue(QUEUE* queue, QUEUE_NODE* queue_node);
 QUEUE_NODE* dequeue(QUEUE* queue);
 bool is_queue_empty(QUEUE* queue);
 int queue_size(QUEUE* queue);
-QUEUE_NODE* create_queue_node(QUEUE_NODE_KEY key, char* data);
+QUEUE_NODE* create_queue_node(QUEUE_NODE_KEY key, char* info);
 void print_queue(QUEUE* queue);
