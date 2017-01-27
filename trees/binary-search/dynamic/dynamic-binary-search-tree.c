@@ -104,18 +104,18 @@ int binary_search_tree_size(BINARY_SEARCH_TREE_NODE* root) {
 }
 
 void print_binary_search_tree(BINARY_SEARCH_TREE_NODE* root) {
-	if (root) {
-		printf("%d", root->key);
+    if (root) {
+        printf("%d", root->key);
 
-		if (root->left || root->right) {
-			printf("(");
-			print_binary_search_tree(root->left);
-			printf(", ");
-			print_binary_search_tree(root->right);
-			printf(")");
-		}
-	}
-	else {
-		printf("--");
-	}
+        if (root->left || root->right) {
+            printf("(");
+            print_binary_search_tree(root->left);
+            printf(", ");
+            print_binary_search_tree(root->right);
+            printf(")");
+        }
+    }
+    else {
+        printf("--");
+    }
 }
