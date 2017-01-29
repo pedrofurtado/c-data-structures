@@ -88,7 +88,7 @@ bool binary_search_tree_delete(BINARY_SEARCH_TREE_NODE** root, BINARY_SEARCH_TRE
         *root = aux;
     }
     else {
-        aux = binary_search_tree_rightmost_node(&(*root)->left);
+        aux = binary_search_tree_rightmost_node(&(*root)->left); // OR aux = binary_search_tree_leftmost_node(&(*root)->right);
         aux->left = (*root)->left;
         aux->right = (*root)->right;
         free(*root);
@@ -106,6 +106,18 @@ BINARY_SEARCH_TREE_NODE* binary_search_tree_rightmost_node(BINARY_SEARCH_TREE_NO
     BINARY_SEARCH_TREE_NODE* aux = *root;
 
     *root = ((*root)->left) ? (*root)->left : NULL;
+
+    return aux;
+}
+
+BINARY_SEARCH_TREE_NODE* binary_search_tree_leftmost_node(BINARY_SEARCH_TREE_NODE* *root) {
+    if((*root)->left) {
+        return binary_search_tree_leftmost_node(&(*root)->left);
+    }
+
+    BINARY_SEARCH_TREE_NODE* aux = *root;
+
+    *root = ((*root)->right) ? (*root)->right : NULL;
 
     return aux;
 }
