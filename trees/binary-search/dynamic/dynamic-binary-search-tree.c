@@ -2,9 +2,20 @@
  * Dynamic binary search tree.
  */
 #include "dynamic-binary-search-tree.h"
+#include "dynamic-queue.h"
 
 BINARY_SEARCH_TREE_NODE* init_binary_search_tree() {
     return NULL;
+}
+
+void destroy_binary_search_tree(BINARY_SEARCH_TREE_NODE** root) {
+    if(!*root) { return; }
+
+    destroy_binary_search_tree(&(*root)->left);
+    destroy_binary_search_tree(&(*root)->right);
+
+    free(*root);
+    *root = NULL;
 }
 
 bool binary_search_tree_insert(BINARY_SEARCH_TREE_NODE** root, BINARY_SEARCH_TREE_NODE* node) {
@@ -118,4 +129,51 @@ void print_binary_search_tree(BINARY_SEARCH_TREE_NODE* root) {
     else {
         printf("--");
     }
+}
+
+void binary_search_tree_pre_order(BINARY_SEARCH_TREE_NODE* root) {
+    if(!root) { return; }
+
+    printf("%d, ", root->key);
+    binary_search_tree_pre_order(root->left);
+    binary_search_tree_pre_order(root->right);
+}
+
+void binary_search_tree_in_order(BINARY_SEARCH_TREE_NODE* root) {
+    if(!root) { return; }
+
+    binary_search_tree_in_order(root->left);
+    printf("%d, ", root->key);
+    binary_search_tree_in_order(root->right);
+}
+
+void binary_search_tree_post_order(BINARY_SEARCH_TREE_NODE* root) {
+    if(!root) { return; }
+
+    binary_search_tree_post_order(root->left);
+    binary_search_tree_post_order(root->right);
+    printf("%d, ", root->key);
+}
+
+void binary_search_tree_level_order(BINARY_SEARCH_TREE_NODE* root) {
+    if(!root) { return; }
+
+    QUEUE* queue = init_queue();
+    enqueue(queue, create_queue_node(root->key, root->data.info));
+
+    QUEUE_NODE* queue_node;
+    BINARY_SEARCH_TREE_NODE* tree_node;
+
+    while(!is_queue_empty(queue)) {
+        queue_node = dequeue(queue);
+        tree_node = binary_search_tree_search(root, queue_node->key);
+
+        printf("%d, ", tree_node->key);
+
+        if(tree_node->left) { enqueue(queue, create_queue_node(tree_node->left->key, tree_node->left->data.info)); }
+
+        if(tree_node->right) { enqueue(queue, create_queue_node(tree_node->right->key, tree_node->right->data.info)); }
+    }
+
+    destroy_queue(&queue);
 }
