@@ -107,7 +107,108 @@ AVL_TREE_NODE* avl_tree_search(AVL_TREE_NODE* root, AVL_TREE_NODE_KEY key) {
 }
 
 bool avl_tree_delete(AVL_TREE_NODE** root, AVL_TREE_NODE_KEY key) {
+    if(!*root) { return false; }
+
+    if(key < (*root)->key) {
+        if(avl_tree_delete(&(*root)->left, key)) {
+            if(avl_tree_balance_factor(*root) < -1) {
+                if(avl_tree_height((*root)->right->right) >= avl_tree_height((*root)->right->left)) {
+                    avl_tree_rr_rotation(root);
+                }
+                else {
+                    avl_tree_rl_rotation(root);
+                }
+            }
+
+            (*root)->height = avl_tree_calculate_new_height(*root);
+
+            return true;
+        }
+        else {
+            return false;
+        }
+    }
+    else if(key > (*root)->key) {
+        if(avl_tree_delete(&(*root)->right, key)) {
+            if(avl_tree_balance_factor(*root) > 1) {
+                if(avl_tree_height((*root)->left->left) >= avl_tree_height((*root)->left->right)) {
+                    avl_tree_ll_rotation(root);
+                }
+                else {
+                    avl_tree_lr_rotation(root);
+                }
+            }
+
+            (*root)->height = avl_tree_calculate_new_height(*root);
+
+            return true;
+        }
+        else {
+            return false;
+        }
+    }
+
+    AVL_TREE_NODE* aux = NULL;
+
+    if(!(*root)->left && !(*root)->right) {
+        free(*root);
+        *root = NULL;
+    }
+    else if((*root)->left && !(*root)->right) {
+        aux = (*root)->left;
+        free(*root);
+        *root = aux;
+    }
+    else if(!(*root)->left && (*root)->right) {
+        aux = (*root)->right;
+        free(*root);
+        *root = aux;
+    }
+    else {
+        ///* // OPTION 1: Rightmost node in left sub-tree.
+        aux = avl_tree_rightmost_node((*root)->left);
+        (*root)->key = aux->key;
+
+        avl_tree_delete(&(*root)->left, aux->key);
+
+        if(avl_tree_balance_factor(*root) < -1) {
+            if(avl_tree_height((*root)->right->right) >= avl_tree_height((*root)->right->left)) {
+                avl_tree_rr_rotation(root);
+            }
+            else {
+                avl_tree_rl_rotation(root);
+            }
+        }
+        //*/
+
+        /* // OPTION 2: Leftmost node in right sub-tree.
+        aux = avl_tree_leftmost_node((*root)->right);
+        (*root)->key = aux->key;
+
+        avl_tree_delete(&(*root)->right, aux->key);
+
+        if(avl_tree_balance_factor(*root) > 1) {
+            if(avl_tree_height((*root)->left->left) >= avl_tree_height((*root)->left->right)) {
+                avl_tree_ll_rotation(root);
+            }
+            else {
+                avl_tree_lr_rotation(root);
+            }
+        }
+        */
+
+        (*root)->height = avl_tree_calculate_new_height(*root);
+    }
+
     return true;
+}
+
+AVL_TREE_NODE* avl_tree_rightmost_node(AVL_TREE_NODE* root) {
+    return (root->right) ? avl_tree_rightmost_node(root->right) : root;
+}
+
+AVL_TREE_NODE* avl_tree_leftmost_node(AVL_TREE_NODE* root) {
+    return (root->left) ? avl_tree_leftmost_node(root->left) : root;
 }
 
 int avl_tree_size(AVL_TREE_NODE* root) {

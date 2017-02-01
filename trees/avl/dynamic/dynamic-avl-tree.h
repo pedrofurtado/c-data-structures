@@ -39,3 +39,5 @@ void avl_tree_ll_rotation(AVL_TREE_NODE** root);
 void avl_tree_rr_rotation(AVL_TREE_NODE** root);
 void avl_tree_lr_rotation(AVL_TREE_NODE** root);
 void avl_tree_rl_rotation(AVL_TREE_NODE** root);
+AVL_TREE_NODE* avl_tree_rightmost_node(AVL_TREE_NODE* root);
+AVL_TREE_NODE* avl_tree_leftmost_node(AVL_TREE_NODE* root);
