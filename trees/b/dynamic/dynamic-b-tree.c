@@ -167,6 +167,299 @@ bool b_tree_insert_nonfull(B_TREE* x, B_TREE_KEY k, B_TREE_DATA data) {
     return b_tree_insert_nonfull(x->pointers[i + 1], k, data);
 }
 
+int b_tree_find_key(B_TREE* x, B_TREE_KEY k) {
+    int idx = 0;
+
+    while (idx < x->size && x->keys[idx] < k) {
+        idx++;
+    }
+
+    return idx;
+}
+
+B_TREE_KEY b_tree_get_predecessor(B_TREE* x, int idx) {
+    // Keep moving to the right most node until we reach a leaf
+    B_TREE* cur = x->pointers[idx];
+
+    while (!cur->leaf) {
+        cur = cur->pointers[cur->size];
+    }
+
+    // Return the last key of the leaf
+    return cur->keys[cur->size - 1];
+}
+
+B_TREE_KEY b_tree_get_successor(B_TREE* x, int idx) {
+    // Keep moving the left most node starting from C[idx+1] until we reach a leaf
+    B_TREE* cur = x->pointers[idx + 1];
+
+    while (!cur->leaf) {
+        cur = cur->pointers[0];
+    }
+
+    // Return the first key of the leaf
+    return cur->keys[0];
+}
+
+void b_tree_destroy_node(B_TREE* x) {
+    if(!x) { return; }
+
+    free(x->keys);
+    free(x->data);
+    free(x->pointers);
+    free(x);
+}
+
+void b_tree_merge(B_TREE* x, int idx) {
+    B_TREE* child = x->pointers[idx];
+    B_TREE* sibling = x->pointers[idx + 1];
+
+    // Pulling a key from the current node and inserting it into (t-1)th
+    // position of C[idx]
+    child->keys[b_tree_minimum_number_of_keys()] = x->keys[idx];
+
+    // Copying the keys from C[idx+1] to C[idx] at the end
+    int i;
+    for (i = 0; i < sibling->size; i++) {
+        child->keys[i + b_tree_minimum_number_of_pointers()] = sibling->keys[i];
+    }
+
+    // Copying the child pointers from C[idx+1] to C[idx]
+    if (!child->leaf) {
+        for(i = 0; i <= sibling->size; i++) {
+            child->pointers[i + b_tree_minimum_number_of_pointers()] = sibling->pointers[i];
+        }
+    }
+
+    // Moving all keys after idx in the current node one step before -
+    // to fill the gap created by moving keys[idx] to C[idx]
+    for (i = idx + 1; i < x->size; i++) {
+        x->keys[i - 1] = x->keys[i];
+    }
+
+    // Moving the child pointers after (idx+1) in the current node one
+    // step before
+    for (i = idx + 2; i <= x->size; i++) {
+        x->pointers[i - 1] = x->pointers[i];
+    }
+
+    // Updating the key count of child and the current node
+    child->size += sibling->size + 1;
+    x->size--;
+
+    // Freeing the memory occupied by sibling
+    b_tree_destroy_node(sibling);
+}
+
+void b_tree_delete_from_non_leaf(B_TREE* x, int idx) {
+    int k = x->keys[idx];
+
+    // If the child that precedes k (C[idx]) has atleast t keys,
+    // find the predecessor 'pred' of k in the subtree rooted at
+    // C[idx]. Replace k by pred. Recursively delete pred
+    // in C[idx]
+    if (x->pointers[idx]->size >= b_tree_minimum_number_of_pointers()) {
+        B_TREE_KEY pred = b_tree_get_predecessor(x, idx);
+        x->keys[idx] = pred;
+        b_tree_delete(x->pointers[idx], pred);
+    }
+
+    // If the child C[idx] has less that t keys, examine C[idx+1].
+    // If C[idx+1] has atleast t keys, find the successor 'succ' of k in
+    // the subtree rooted at C[idx+1]
+    // Replace k by succ
+    // Recursively delete succ in C[idx+1]
+    else if (x->pointers[idx + 1]->size >= b_tree_minimum_number_of_pointers()) {
+        B_TREE_KEY succ = b_tree_get_successor(x, idx);
+        x->keys[idx] = succ;
+        b_tree_delete(x->pointers[idx + 1], succ);
+    }
+
+    // If both C[idx] and C[idx+1] has less that t keys,merge k and all of C[idx+1]
+    // into C[idx]
+    // Now C[idx] contains 2t-1 keys
+    // Free C[idx+1] and recursively delete k from C[idx]
+    else {
+        b_tree_merge(x, idx);
+        b_tree_delete(x->pointers[idx], k);
+    }
+}
+
+void b_tree_delete_from_leaf(B_TREE* x, int idx) {
+    // Move all the keys after the idx-th pos one place backward
+    int i;
+    for (i = idx + 1; i < x->size; i++) {
+        x->keys[i - 1] = x->keys[i];
+    }
+
+    // Reduce the count of keys
+    x->size--;
+}
+
+void b_tree_borrow_from_previous(B_TREE* x, int idx) {
+    B_TREE* child = x->pointers[idx];
+    B_TREE* sibling = x->pointers[idx - 1];
+
+    // The last key from C[idx-1] goes up to the parent and key[idx-1]
+    // from parent is inserted as the first key in C[idx]. Thus, the  loses
+    // sibling one key and child gains one key
+
+    // Moving all key in C[idx] one step ahead
+    int i;
+    for (i = child->size - 1; i >= 0; i--) {
+        child->keys[i + 1] = child->keys[i];
+    }
+
+    // If C[idx] is not a leaf, move all its child pointers one step ahead
+    if (!child->leaf) {
+        for(i = child->size; i >= 0; i--) {
+            child->pointers[i + 1] = child->pointers[i];
+        }
+    }
+
+    // Setting child's first key equal to keys[idx-1] from the current node
+    child->keys[0] = x->keys[idx - 1];
+
+    // Moving sibling's last child as C[idx]'s first child
+    if (!x->leaf) {
+        child->pointers[0] = sibling->pointers[sibling->size];
+    }
+
+    // Moving the key from the sibling to the parent
+    // This reduces the number of keys in the sibling
+    x->keys[idx - 1] = sibling->keys[sibling->size - 1];
+
+    child->size++;
+    sibling->size--;
+}
+
+void b_tree_borrow_from_next(B_TREE* x, int idx) {
+    B_TREE* child = x->pointers[idx];
+    B_TREE* sibling = x->pointers[idx + 1];
+
+    // keys[idx] is inserted as the last key in C[idx]
+    child->keys[child->size] = x->keys[idx];
+
+    // Sibling's first child is inserted as the last child
+    // into C[idx]
+    if (!child->leaf) {
+        child->pointers[child->size + 1] = sibling->pointers[0];
+    }
+
+    //The first key from sibling is inserted into keys[idx]
+    x->keys[idx] = sibling->keys[0];
+
+    // Moving all keys in sibling one step behind
+    int i;
+    for (i = 1; i < sibling->size; i++) {
+        sibling->keys[i - 1] = sibling->keys[i];
+    }
+
+    // Moving the child pointers one step behind
+    if (!sibling->leaf) {
+        for(i = 1; i <= sibling->size; i++) {
+            sibling->pointers[i - 1] = sibling->pointers[i];
+        }
+    }
+
+    // Increasing and decreasing the key count of C[idx] and C[idx+1]
+    // respectively
+    child->size++;
+    sibling->size--;
+}
+
+void b_tree_fill(B_TREE* x, int idx) {
+    // If the previous child(C[idx-1]) has more than t-1 keys, borrow a key
+    // from that child
+    if (idx != 0 && x->pointers[idx - 1]->size >= b_tree_minimum_number_of_pointers()) {
+        b_tree_borrow_from_previous(x, idx);
+    }
+
+    // If the next child(C[idx+1]) has more than t-1 keys, borrow a key
+    // from that child
+    else if (idx != x->size && x->pointers[idx + 1]->size >= b_tree_minimum_number_of_pointers()) {
+        b_tree_borrow_from_next(x, idx);
+    }
+
+    // Merge C[idx] with its sibling
+    // If C[idx] is the last child, merge it with with its previous sibling
+    // Otherwise merge it with its next sibling
+    else if (idx != x->size) {
+        b_tree_merge(x, idx);
+    }
+    else {
+        b_tree_merge(x, idx - 1);
+    }
+}
+
+bool b_tree_delete(B_TREE* x, B_TREE_KEY k) {
+    int idx = b_tree_find_key(x, k);
+
+    // The key to be removed is present in this node
+    if (idx < x->size && x->keys[idx] == k) {
+        // If the node is a leaf node - removeFromLeaf is called
+        // Otherwise, removeFromNonLeaf function is called
+        if (x->leaf) {
+            b_tree_delete_from_leaf(x, idx);
+        }
+        else {
+            b_tree_delete_from_non_leaf(x, idx);
+        }
+
+        return true;
+    }
+
+    // If this node is a leaf node, then the key is not present in tree
+    if (x->leaf) {
+        //The key "k" is does not exist in the tree\n";
+        return false;
+    }
+
+    // The key to be removed is present in the sub-tree rooted with this node
+    // The flag indicates whether the key is present in the sub-tree rooted
+    // with the last child of this node
+    bool flag = (idx == x->size);
+
+    // If the child where the key is supposed to exist has less that t keys,
+    // we fill that child
+    if (x->pointers[idx]->size < b_tree_minimum_number_of_pointers()) {
+        b_tree_fill(x, idx);
+    }
+
+    // If the last child has been merged, it must have merged with the previous
+    // child and so we recurse on the (idx-1)th child. Else, we recurse on the
+    // (idx)th child which now has atleast t keys
+    if (flag && idx > x->size) {
+        return b_tree_delete(x->pointers[idx - 1], k);
+    }
+
+    return b_tree_delete(x->pointers[idx], k);
+}
+
+bool b_tree_delete_from_root(B_TREE** root, B_TREE_KEY k) {
+    if (!*root) { return false; }
+
+    if(!b_tree_delete(*root, k)) { return false; }
+
+    // If the root node has 0 keys, make its first child as the new root
+    //  if it has a child, otherwise set root as NULL
+    if ((*root)->size == 0) {
+        B_TREE* tmp = *root;
+
+        if ((*root)->leaf) {
+            *root = NULL;
+        }
+        else {
+            *root = (*root)->pointers[0];
+        }
+
+        // Free the old root
+        b_tree_destroy_node(tmp);
+    }
+
+    return true;
+}
+
 void print_b_tree(B_TREE* p) {
     if (p) {
         if (p->leaf) {
@@ -235,7 +528,74 @@ int main() {
     b_tree_insert(&b_tree, 0, *data);
     printf("\n"); print_b_tree(b_tree); printf("\n");
 
+    b_tree_insert(&b_tree, 0, *data);
+    printf("\n"); print_b_tree(b_tree); printf("\n");
+
+    b_tree_insert(&b_tree, 10, *data);
+    printf("\n"); print_b_tree(b_tree); printf("\n");
+
+    b_tree_insert(&b_tree, 41, *data);
+    printf("\n"); print_b_tree(b_tree); printf("\n");
+
+    b_tree_insert(&b_tree, 15, *data);
+    printf("\n"); print_b_tree(b_tree); printf("\n");
+
+    b_tree_insert(&b_tree, 16, *data);
+    printf("\n"); print_b_tree(b_tree); printf("\n");
+
+    b_tree_insert(&b_tree, 17, *data);
+    printf("\n"); print_b_tree(b_tree); printf("\n");
+
+    b_tree_insert(&b_tree, 35, *data);
+    printf("\n"); print_b_tree(b_tree); printf("\n");
+
+    b_tree_insert(&b_tree, 9, *data);
+    printf("\n"); print_b_tree(b_tree); printf("\n");
+
+    b_tree_insert(&b_tree, 1, *data);
+    printf("\n"); print_b_tree(b_tree); printf("\n");
+
+    b_tree_insert(&b_tree, 0, *data);
+    printf("\n"); print_b_tree(b_tree); printf("\n");
+
+    b_tree_insert(&b_tree, 42, *data);
+    printf("\n"); print_b_tree(b_tree); printf("\n");
+
+    b_tree_insert(&b_tree, 43, *data);
+    printf("\n"); print_b_tree(b_tree); printf("\n");
+
     printf("\n================================\n================================\n");
+    B_TREE_KEY k;
+
+    k = 5;
+    if(b_tree_delete_from_root(&b_tree, k)) { printf("\n REmovido a chave %d\n", k); print_b_tree(b_tree); printf("\n"); } else { printf("\n Nao foi encontrado a chave %d\n", k); }
+
+    k = 5;
+    if(b_tree_delete_from_root(&b_tree, k)) { printf("\n REmovido a chave %d\n", k); print_b_tree(b_tree); printf("\n"); } else { printf("\n Nao foi encontrado a chave %d\n", k); }
+
+    k = 5;
+    if(b_tree_delete_from_root(&b_tree, k)) { printf("\n REmovido a chave %d\n", k); print_b_tree(b_tree); printf("\n"); } else { printf("\n Nao foi encontrado a chave %d\n", k); }
+
+    k = 5;
+    if(b_tree_delete_from_root(&b_tree, k)) { printf("\n REmovido a chave %d\n", k); print_b_tree(b_tree); printf("\n"); } else { printf("\n Nao foi encontrado a chave %d\n", k); }
+
+    k = 5;
+    if(b_tree_delete_from_root(&b_tree, k)) { printf("\n REmovido a chave %d\n", k); print_b_tree(b_tree); printf("\n"); } else { printf("\n Nao foi encontrado a chave %d\n", k); }
+
+    k = 5;
+    if(b_tree_delete_from_root(&b_tree, k)) { printf("\n REmovido a chave %d\n", k); print_b_tree(b_tree); printf("\n"); } else { printf("\n Nao foi encontrado a chave %d\n", k); }
+
+    k = 5;
+    if(b_tree_delete_from_root(&b_tree, k)) { printf("\n REmovido a chave %d\n", k); print_b_tree(b_tree); printf("\n"); } else { printf("\n Nao foi encontrado a chave %d\n", k); }
+
+    k = 5;
+    if(b_tree_delete_from_root(&b_tree, k)) { printf("\n REmovido a chave %d\n", k); print_b_tree(b_tree); printf("\n"); } else { printf("\n Nao foi encontrado a chave %d\n", k); }
+
+    k = 5;
+    if(b_tree_delete_from_root(&b_tree, k)) { printf("\n REmovido a chave %d\n", k); print_b_tree(b_tree); printf("\n"); } else { printf("\n Nao foi encontrado a chave %d\n", k); }
+
+    k = 5;
+    if(b_tree_delete_from_root(&b_tree, k)) { printf("\n REmovido a chave %d\n", k); print_b_tree(b_tree); printf("\n"); } else { printf("\n Nao foi encontrado a chave %d\n", k); }
 
     return 0;
 }

@@ -38,6 +38,6 @@ B_TREE_DATA* b_tree_search(B_TREE* root, B_TREE_KEY key);
 void b_tree_split_child(B_TREE* x, int i, B_TREE* y);
 bool b_tree_insert(B_TREE** root, B_TREE_KEY key, B_TREE_DATA data);
 bool b_tree_insert_nonfull(B_TREE* x, B_TREE_KEY k, B_TREE_DATA data);
-bool b_tree_delete(B_TREE** root, B_TREE_KEY key);
+bool b_tree_delete(B_TREE* root, B_TREE_KEY key);
 void destroy_b_tree(B_TREE** root);
 void print_b_tree(B_TREE* root);
